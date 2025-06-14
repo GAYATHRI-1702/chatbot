@@ -19,7 +19,7 @@ import os
 # If you are running locally and setting it directly:
 # client = OpenAI(api_key="YOUR_OPENAI_API_KEY_HERE")
 # If using Streamlit secrets (recommended for deployment):
-client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY="sk-YOUR_ACTUAL_OPENAI_API_KEY_GOES_HERE"", os.getenv("OPENAI_API_KEY")))
+client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY="sk-YOUR_ACTUAL_OPENAI_API_KEY_GOES_HERE", os.getenv("OPENAI_API_KEY")))
 
 st.set_page_config(page_title="Simple AI Chatbot", layout="centered")
 
