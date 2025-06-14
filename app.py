@@ -1,80 +1,71 @@
 import streamlit as st
-import time # Used for simulating AI "thinking" time
+from openai import OpenAI
+import os # Useful for fallback to environment variables
 
-st.set_page_config(page_title="Mock AI Chatbot", layout="centered")
+# Initialize the OpenAI client using st.secrets.
+# It's good practice to also allow loading from environment variables for flexibility
+# (e.g., if you run locally without a secrets.toml but with an env var).
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except KeyError:
+    # Fallback to environment variable if not found in st.secrets (e.g., if running outside Streamlit Cloud and no secrets.toml)
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        client = OpenAI(api_key=api_key)
+    else:
+        st.error("OpenAI API key not found. Please configure it in .streamlit/secrets.toml or as an environment variable.")
+        st.stop() # Stop the app if API key is missing
 
-st.title("🤖 Mock AI Chatbot")
-st.markdown("---")
+st.title("🗣️ AI Chatbot")
 
-# --- Chat History Management ---
-# Initialize chat history in session state if it doesn't exist
+# ... rest of your chatbot code ...
+# (The rest of the code from the previous example remains largely the same)
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # Add an initial greeting from the assistant
-    st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm a simple mock AI. Ask me anything, or try saying 'hello' or 'how are you?'"})
 
-# Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- User Input ---
-if prompt := st.chat_input("Type your message here..."):
-    # Add user message to chat history
+if prompt := st.chat_input("What's on your mind?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
-
-    # Display user message in the chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # --- Mock AI Response Generation ---
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
+        try:
+            for chunk in client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ],
+                stream=True,
+            ):
+                full_response += chunk.choices[0].delta.content or ""
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            st.error(f"An error occurred: {e}. Please check your API key and try again.")
+            full_response = "I encountered an error trying to generate a response. Please try again."
+            message_placeholder.markdown(full_response)
 
-        # Simulate a small delay for AI "thinking"
-        time.sleep(0.5)
-
-        # Simple rule-based responses for the mock AI
-        if "hello" in prompt.lower() or "hi" in prompt.lower():
-            response_text = "Hello there! How can I help you today?"
-        elif "how are you" in prompt.lower():
-            response_text = "I'm just a program, so I don't have feelings, but I'm functioning perfectly! How about you?"
-        elif "your name" in prompt.lower():
-            response_text = "I don't have a name. I am a mock AI designed to show Streamlit's chat capabilities."
-        elif "weather" in prompt.lower():
-            response_text = "I can't tell you the weather right now, as I don't have access to real-time information!"
-        elif "bye" in prompt.lower() or "goodbye" in prompt.lower():
-            response_text = "Goodbye! It was nice chatting with you (virtually, of course)."
-        elif "streamlit" in prompt.lower():
-            response_text = "Streamlit is an amazing Python library for creating web apps for data science and machine learning!"
-        else:
-            response_text = f"You said: '{prompt}'. I'm a simple mock AI and can't understand complex queries. Try asking something simpler!"
-
-        # Simulate streaming the response
-        for char in response_text:
-            full_response += char
-            message_placeholder.markdown(full_response + "▌") # Add a blinking cursor
-            time.sleep(0.02) # Small delay for typing effect
-
-        message_placeholder.markdown(full_response) # Display final response without cursor
-
-    # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-# --- Sidebar for Controls ---
 with st.sidebar:
     st.header("Chat Controls")
-    # Button to clear the chat history
     if st.button("Clear Chat History"):
         st.session_state.messages = []
-        # Add the initial greeting again after clearing
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm a simple mock AI. Ask me anything, or try saying 'hello' or 'how are you?'"})
-        st.experimental_rerun() # Rerun the app to clear the displayed messages
+        st.experimental_rerun()
 
     st.markdown("---")
-    st.markdown("### About this app:")
-    st.markdown("This is a mock AI chatbot built with Streamlit. It uses pre-programmed responses and **does not connect to any external AI models or require API keys/secrets.**")
-    st.markdown("It demonstrates the basic chat interface features of Streamlit.")
+    st.markdown("### How to use:")
+    st.markdown("- Type your message in the input box below.")
+    st.markdown("- Press Enter or click the send icon.")
+    st.markdown("- The AI's response will appear above.")
+    st.markdown("- Click 'Clear Chat History' to start a new conversation.")
     st.markdown("---")
-    st.markdown("Simulated AI by Streamlit")
+    st.markdown("Powered by OpenAI and Streamlit (API key securely managed)")
